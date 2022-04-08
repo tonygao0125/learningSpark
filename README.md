@@ -33,10 +33,15 @@ Spark is an unified computing engine for parallel data processing on clusters. *
 3. Accumulator (less used)
 
 #### High Level APIs of Spark - Structured APIs
-1. Dataframe
-2. SQL
-3. Dataset
-**On top of it, it supports: 1. Structured Streaming. 2. Advanced Analytics. 3. Other Libraries.**
+1. Dataframe - no fixed schema 
+2. SQL - SQL statement for dataframe/dataset control (data define and manipulation)
+3. Dataset - has fixed schema 
+
+#### On top of High Level APIs, it supports: 
+1. Structured Streaming. 
+2. Advanced Analytics. (for ML use)
+3. Other Libraries.
+
 #### Versions
 - 2014 -> 1.0 (1.6) -> RDD
 - 2016 -> 2.0 (2.1, 2.4) -> Dataframe, Dataset
@@ -45,11 +50,18 @@ Spark is an unified computing engine for parallel data processing on clusters. *
 #### Driver vs Executor
 - Spark Driver is the central coordinator and it communicates with all the Workers. It controls the flow of program. 
 - Each Worker node consists of one or more Executor(s) who are responsible for running the Task. Executors register themselves with Driver. The Driver has all the information about the Executors at all the time.
-- Normally, one driver corresponds to multiple executors. 
-- SparkSession is created within driver node.
+- A Spark Application consists of a Driver Program and a group of Executors on the cluster.
+- The Driver is a process that executes the main program of your Spark application and creates the SparkContext that coordinates the execution of jobs. SparkSession is created within driver node.
+- The executors are processes running on the worker nodes of the cluster which are responsible for executing the tasks the driver process has assigned to them.
+- The cluster manager (such as Mesos or YARN) is responsible for the allocation of physical resources to Spark Applications
+SparkSession is created within driver node.
 
 #### Start Spark in Command Line
 - "spark-shell" is the command to start scala spark shell
 - "pyspark" is the command to start python spark shell
 - "sparkR" is the command to start R spark shell
 - Java has no shell, no command line interface
+
+### Spark Session vs Spark Context
+- Since earlier versions of Spark or Pyspark, SparkContext (JavaSparkContext for Java) is an entry point to Spark programming with RDD and to connect to Spark Cluster
+- Since Spark 2.0 SparkSession has been introduced and became an entry point to start programming with DataFrame and Dataset.
