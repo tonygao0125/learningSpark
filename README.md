@@ -65,3 +65,4 @@ SparkSession is created within driver node.
 ### Spark Session vs Spark Context
 - Since earlier versions of Spark or Pyspark, SparkContext (JavaSparkContext for Java) is an entry point to Spark programming with RDD and to connect to Spark Cluster
 - Since Spark 2.0 SparkSession has been introduced and became an entry point to start programming with DataFrame and Dataset.
+- 
