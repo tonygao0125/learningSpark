@@ -19,10 +19,10 @@ First open-source project for distributed storage, resource management and compu
 **Spark can run in standalong mode, then we can have separate storage, so we don't have to integrate it with Hadoop.**
 
 #### Spark support four langurages:
-- Scala (Most widely used since Spark itself is written in Scala, better integration)
-- Java (2nd most popular lang for data engineering)
-- Python (Mostly for data science application)
-- R (less used)
+- Scala (Most widely used since Spark itself is written in Scala, better integration) -> spark-shell
+- Java (2nd most popular lang for data engineering) -> No shell, no CLI
+- Python (Mostly for data science application) -> pyspark
+- R (less used) -> sparkR
 
 #### Definition
 Spark is an unified computing engine for parallel data processing on clusters. **It supports batch processing, streaming processing, ML and SQL queries.** 
