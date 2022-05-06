@@ -1,0 +1,276 @@
+Set up Virtual Machine
+========================
+1. Oracle VM (Free) or VM Ware (License, personal use is free)
+Oracle VM
+
+2. Install Linux
+Cent OS, Red Hat or Ubuntu
+Ubuntu 20.04
+
+3. Install jdk
+
+4. Install Hadoop and Hive
+
+5. Install Spark and Scala
+
+6. Install sbt
+
+Option 1: Just use the existing set up VM (Eg: Cloudera quickstart VM, VM set up by some one)
+Download: https://drive.google.com/drive/folders/1fuAy0UL5YKFT1CHpkc_3FtYTABU7VnsM?usp=sharing
+
+NOTE: YOU SHOULD BE HAVING VIRTUALZIATION ENABLED ON YOUR MACHINE... just check on youtube "turn on visualization in hp/dell/asus laptop"
+
+ - Install Oracle VM
+	- Download and double click on VirtualBox-6.1.12-139181-Win.exe
+	- Do NEXT NEXT NEXT . . . DONE
+ - Import the image of ubuntu20.04 that is pre configured for hadoop and spark 
+    - Click on File (in Oracle VM) and select "import appliance" option
+	- Double click on Ubuntu 20.04_hadoop.ova
+	- Password: 123456
+
+
+Option 2: Set up your VM (Recommended to atleast try for one time)
+10-12 Hours
+Step 1: Download ubuntu 20.04 from below url and import in oracle vm
+https://ubuntu.com/download/server
+Follow Video: https://www.youtube.com/watch?v=QbmRXJJKsvs
+
+
+Step 2: Install jdk / java 8 
+Option 1: sudo apt-get install openjdk-8-jdk {Not recommended}
+or
+Option 2: download a tar.gz file, untar it to a location,
+and set the path in .bashrc file {Recommended}
+
+1. Download tar.gz file for jdk 1.8
+2. untar it 
+3. copy it to /usr/local/java
+4. set up the path. Open command line and wrote "gedit .bashrc"
+copy below at the end of file.
+
+export JAVA_HOME=/usr/local/java/jdk1.8.0_261
+export PATH=$PATH:$JAVA_HOME/bin
+
+Note: To set path, either restart the VM or run below
+
+source ~/.bashrc
+
+5. update alternatives
+sudo update-alternatives --install "/usr/bin/java" "java" "/usr/local/java/jdk1.8.0_261/bin/java" 1
+sudo update-alternatives --install "/usr/bin/javac" "javac" "/usr/local/java/jdk1.8.0_261/bin/javac" 1
+sudo update-alternatives --install "/usr/bin/javaws" "javaws" "/usr/local/java/jdk1.8.0_261/bin/javaws" 1
+
+Step 3: Install Hadoop and Hive
+3.1 Hadoop
+
+Additional Step required: Install openssh-server and set keys for passwordless login
+- sudo apt-get update
+- sudo apt-get upgrade
+- sudo apt-get install openssh-server
+
+- ssh-keygen -t rsa -P '' -f ~/.ssh/id_rsa
+- cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+
+- ssh localhost
+
+
+1. Download tar.gz file for hadoop-2.8.5
+https://hadoop.apache.org/release/2.8.5.html
+
+2. untar it 
+tar -xzvf hadoop-2.8.5.tar.gz
+
+3. copy it to /usr/local/hadoop
+
+4. set up the path. Open command line and wrote "gedit .bashrc"
+copy below at the end of file.
+
+export HADOOP_HOME=/usr/local/hadoop/hadoop-2.8.5
+export PATH=$PATH:$HADOOP_HOME/bin
+export PATH=$PATH:$HADOOP_HOME/sbin
+export HADOOP_CONF_DIR=/usr/local/hadoop/hadoop-2.8.5/etc/hadoop
+
+Note: To set path, either restart the VM or run below
+
+source ~/.bashrc
+
+5. Do some changes in conf files as explained in video
+
+6. Start hdfs and yarn
+start-dfs.sh
+start-yarn.sh 
+
+
+3.2 Hive
+
+Additional Step: Installing My SQL
+metastore : Derby / mySql
+
+- sudo apt-get update
+- sudo apt-get upgrade
+- sudo apt-get install mysql-server
+- sudo mysql_secure_installation
+- sudo "mysql -u root -p " 
+
+Reference: For above steps: you can refer https://www.sqlshack.com/how-to-install-mysql-on-ubuntu-18-04/
+
+- CREATE USER 'hiveuser'@'%' IDENTIFIED BY 'Hive@123456';
+- GRANT ALL PRIVILEGES ON *.* TO 'hiveuser'@'%' WITH GRANT OPTION;
+- FLUSH PROVILEGES;
+- CREATE DATABASE metastore_db;
+
+Installation of Hive
+
+
+1. Download tar.gz file for hive-2.3.6
+https://archive.apache.org/dist/hive/hive-2.3.6/
+
+2. untar it 
+tar -xzvf hive-2.3.6.tar.gz
+
+3. copy it to /usr/local/hive
+
+4. set up the path. Open command line and wrote "gedit .bashrc"
+copy below at the end of file.
+
+export HIVE_HOME=/usr/local/hive/hive-2.3.6
+export PATH=$PATH:$HIVE_HOME/bin
+
+Note: To set path, either restart the VM or run below
+
+source ~/.bashrc
+
+5. Change database from Derby to MySQL
+HIVE_HOME/bin/schematool -initSchema -dbType mysql
+
+
+6. Refer to video to see hive-site.xml
+
+7. start Hive
+nohup hive --service metastore 
+
+
+
+5. Install Spark and Scala
+5.1 Install Scala (2.11.12)
+
+1. Download tar.gz file for scala 2.11.12
+2. untar it - tar -xzvf scala-2.11.12.tar.gz
+3. copy it to /usr/local/scala
+4. set up the path. Open command line and wrote "gedit .bashrc"
+copy below at the end of file.
+
+export SCALA_HOME=/usr/local/scala/scala-2.11.12/
+export PATH=$PATH:$SCALA_HOME/bin
+
+Note: To set path, either restart the VM or run below
+
+source ~/.bashrc
+
+
+5.2 Install Spark (2.4.4)
+
+1. Download tar.gz file for spark 2.4.4
+2. untar it - tar -xzvf spark-2.4.4.tar.gz
+3. copy it to /usr/local/spark
+4. set up the path. Open command line and wrote "gedit .bashrc"
+copy below at the end of file.
+
+export SPARK_HOME=/usr/local/spark/spark-2.4.4/
+export PATH=$PATH:$SPARK_HOME/bin
+export PATH=$PATH:$SPARK_HOME/sbin
+
+Note: To set path, either restart the VM or run below
+
+source ~/.bashrc
+
+5. Start spark
+$SPARK_HOME/sbin/start-all.sh
+
+
+Adhoc Commands: 
+jps
+===
+hadoopuser@hadoopuser-VirtualBox:~$ jps
+5632 Master
+3506 SecondaryNameNode
+3717 ResourceManager
+3863 NodeManager
+3307 DataNode
+5773 Worker
+4494 RunJar
+5855 Jps
+3167 NameNode
+
+ps -xw
+======
+To see the processes running
+
+
+Just to see every thing is ok
+================================
+1. try some hdfs commands
+hadoopuser@hadoopuser-VirtualBox:~$ hdfs dfs -ls /
+Found 3 items
+drwxr-xr-x   - hadoopuser supergroup          0 2020-07-25 13:03 /sparkData
+drwxrwxrwx   - hadoopuser supergroup          0 2020-07-21 20:02 /tmp
+drwxr-xr-x   - hadoopuser supergroup          0 2020-07-21 19:26 /user
+hadoopuser@hadoopuser-VirtualBox:~$ hdfs dfs -ls /sparkData/
+Found 1 items
+-rw-r--r--   1 hadoopuser supergroup       7080 2020-07-25 13:00 /sparkData/2015-summary.csv
+
+
+
+
+2. try some spark commands
+hadoopuser@hadoopuser-VirtualBox:~$ spark-shell
+20/08/02 11:34:52 WARN util.Utils: Your hostname, hadoopuser-VirtualBox resolves to a loopback address: 127.0.1.1; using 10.0.2.15 instead (on interface enp0s3)
+20/08/02 11:34:52 WARN util.Utils: Set SPARK_LOCAL_IP if you need to bind to another address
+20/08/02 11:34:54 WARN util.NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+Spark context Web UI available at http://10.0.2.15:4040
+Spark context available as 'sc' (master = local[*], app id = local-1596339329294).
+Spark session available as 'spark'.
+Welcome to
+      ____              __
+     / __/__  ___ _____/ /__
+    _\ \/ _ \/ _ `/ __/  '_/
+   /___/ .__/\_,_/_/ /_/\_\   version 2.4.4
+      /_/
+         
+Using Scala version 2.11.12 (Java HotSpot(TM) 64-Bit Server VM, Java 1.8.0_261)
+Type in expressions to have them evaluated.
+Type :help for more information.
+
+scala> val a = 5
+a: Int = 5
+
+scala> val flightsData = sc.textFile("hdfs:////sparkData/2015-summary.csv")
+flightsData: org.apache.spark.rdd.RDD[String] = hdfs:////sparkData/2015-summary.csv MapPartitionsRDD[1] at textFile at <console>:24
+
+scala> flightsData.foreach(println)
+[Stage 0:>                                                          (0 + 1) / 1]DEST_COUNTRY_NAME,ORIGIN_COUNTRY_NAME,count
+United States,Romania,15
+United States,Croatia,1
+United States,Ireland,344
+Egypt,United States,15
+
+6
+
+3. try some Hive Commands 
+hadoopuser@hadoopuser-VirtualBox:~$ hive
+
+Logging initialized using configuration in jar:file:/usr/local/hive/hive-2.3.6/lib/hive-common-2.3.6.jar!/hive-log4j2.properties Async: true
+Hive-on-MR is deprecated in Hive 2 and may not be available in the future versions. Consider using a different execution engine (i.e. spark, tez) or using Hive 1.X releases.
+hive> show tables;
+OK
+employee
+Time taken: 2.945 seconds, Fetched: 1 row(s)
+hive> select * from employee;
+OK
+NULL	12	11	11
+1	aaa	11	11
+Time taken: 5.722 seconds, Fetched: 2 row(s)
+
+

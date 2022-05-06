@@ -1,0 +1,27 @@
+Start hdfs and yarn
+start-dfs.sh
+start-yarn.sh 
+
+start hive metastore
+nohup hive --service metastore 
+
+start spark
+$SPARK_HOME/sbin/start-all.sh
+
+To Check:
+jps
+===
+hadoopuser@hadoopuser-VirtualBox:~$ jps
+5632 Master
+3506 SecondaryNameNode
+3717 ResourceManager
+3863 NodeManager
+3307 DataNode
+5773 Worker
+4494 RunJar
+5855 Jps
+3167 NameNode
+
+ps -xw
+======
+To see the processes running
