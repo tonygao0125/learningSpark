@@ -71,7 +71,7 @@ SparkSession is created within driver node.
 ### SparkSession vs SparkContext
 - Since earlier versions of Spark or Pyspark, SparkContext (JavaSparkContext for Java) is an entry point to Spark programming with RDD and to connect to Spark Cluster
 - Since Spark 2.0 SparkSession has been introduced and became an entry point to start programming with DataFrame and Dataset.
-- Before creating
+
 
 #### Entry Points
 Every Spark Application needs an entry point that allows it to communicate with data sources and perform certain operations such as reading and writing data. 
@@ -184,14 +184,20 @@ A Spark DataFrame is an integrated data structure with an easy-to-use API for si
 Dataframe is much faster than RDD because it has meta data(some information about data) associated with it, which allows Spark to optimize query plan.
 
 
-##### RDD
-The main abstraction Spark provides is a resilient distributed dataset (RDD), which is a collection of elements partitioned across the nodes of the cluster that can be operated on in parallel. 
-- RDD contains the collection of records which are partitioned. The basic unit of parallelism in an RDD is called partition. Each partition is one logical division of data which is immutable and created through some transformation on existing partitions. Immutability helps to achieve consistency in computations. We can move from RDD to DataFrame (If RDD is in tabular format) by toDF() method or we can do the reverse by the .rdd method.
+##### RDD (resilient distributed dataset)
+The main abstraction Spark provides is a *resilient distributed dataset (RDD)*, which is a collection of elements partitioned across the nodes of the cluster that can be operated on in parallel. 
+- RDD contains the collection of records which are partitioned. The basic unit of parallelism in an RDD is called partition. Each partition is one logical division of data which is immutable and created through some transformation on existing partitions. Immutability helps to achieve consistency in computations. We can move from RDD to DataFrame (If RDD is in tabular format) by toDF() method or we can do the reverse by the *.rdd* method.
 - RDD is a distributed collection of data elements spread across many machines in the cluster. RDDs are a set of Java or Scala objects representing data.
-- RDDs has two major characteristics,
-    1. Immutable (once you performed any transformation on it you can’t change it)
-    2. Fault tolerant (It can get recovered in case if it’s lost)
-
+- RDDs has some major characteristics:
+    1. Immutable - Once RDDs are created, they cannot be changed until some transformations are applied on it to create a new RDD.
+    2. Fault tolerant - It can get recovered quickly in case if running failure, since DAG has the record of physical plan and logical plans of data.
+    3. Partitioned - RDDs are a collection of records which are partitioned and stored across distributed nodes.
+    4. Lazy evaluation - Spark transformations are lazily evaluated until an action is executed to trigger the evaluation.
+    5. In-memory - The data can reside in the memory as long as possible.
+- Normally, there are only a few senarios need to deal with RDD:
+    1. Support Legacy code -> spark 1.x
+    2. Granular level control of data, e.g., control how much partition we want, which machine has what partitions, what data should go in each of the          partitions and so on. 
+    3. Working with very unstructured data, e.g., logs data.
 
 ##### DataFrame
 - After transforming into DataFrame one cannot regenerate a domain object. For example, if you generate testDF from testRDD, then you won’t be able to recover the original RDD of the test class.
@@ -201,6 +207,7 @@ The main abstraction Spark provides is a resilient distributed dataset (RDD), wh
 
 ##### DataSet
 It overcomes the limitation of DataFrame to regenerate the RDD from Dataframe. Datasets allow you to convert your existing RDD and DataFrames into Datasets.
+- Dataset only available for scala and Java, not available for Python and R. Because Python and R are dynamically-typed language which means doesn't need to define data type. **And, dataset is nothing but dataframe with fixed schema and type safe (won't accidentally put some other data).**
 
 
 #### Partitions
@@ -220,3 +227,9 @@ No matter what data representation we use (RDD, DataFrame, Dataset), once we exe
 WHY SPARK IS "LAZY"?
 - In case of Hadoop MapReduce, the data transformations are intermidately mapped and stored in HDFS and finally reduced and stored in HDFS via HardDisk. HardDisk does'nt have so much limitation because of space. 
 - In case of Spark, intermidiate data transformations are recorded in forms of DAG(Directed Acyclic Graph) and stored in RAM. And, until the Action assigned, the tranformations are eventually executed according to DAG and stored in HDFS. This is because the memory has space limitation, RAM space is not comparable to HardDisk space.
+
+
+##### Narrow Transformation vs Wide Transformation
+- Narrow transformation: data transformation within the partition and different partitions of data process in parallel. One to one process, e.g., filter transformation. 
+- Wide transformation: partitions on different machines have data moving between machines, which is called shuffle. Shuffle takes time. e.g., join transformation.
+**If the using RDD for data representation, we must be careful, for example, use filter transformation prior to join transformation, otherwise it will take very long time because of shuffle. If using dataframe and dataset API, we don't have to worry about it.**
