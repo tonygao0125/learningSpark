@@ -448,3 +448,149 @@ res9: String = a
 scala> flatbookRDD.reduce((x,y)=>{if(x.length>=y.length) {y} else {x}})
 res10: String = a
 ```
+
+#### 3.3. count()
+- Get the number of elements in the RDD
+```diff
+scala> flatbookRDD.count()
+res11: Long = 166
+```
+
+
+#### 3.4. countApprox(timeout: Long, confidence: Double = 0.95)
+- (Experimental) Approximate version of count() that returns a potentially incomplete result within a timeout, even if not all tasks have finished.
+```diff
+// Returns a potentially incomplete result (range from 105 to 136) in 16 millisecond timeout. Default confidence interval is 95%.
+scala> flatbookRDD.countApprox(16)
+res26: org.apache.spark.partial.PartialResult[org.apache.spark.partial.BoundedDouble] = (partial: [105.000, 136.000])
+
+// Count returned within 20 millisecond timeout
+scala> flatbookRDD.countApprox(20)
+res12: org.apache.spark.partial.PartialResult[org.apache.spark.partial.BoundedDouble] = (final: [166.000, 166.000])
+```
+
+
+#### 3.5. countByValue() - used for word count in Spark
+- Find the number of times each word/value comes in the text.
+```diff
+scala> flatbookRDD.countByValue()
+res28: scala.collection.Map[String,Long] = Map(side -> 1, parts. -> 1, for -> 3, works -> 1, Each -> 1, records, -> 1, this -> 1, in -> 2, scroll -> 1, are -> 1, is -> 5, protected -> 1, extended -> 1, compose -> 1, history -> 1, predecessor, -> 1, of papyrus, parchment, vellum, -> 1, In -> 3, whether -> 1, usage -> 1, contained. -> 1, of writing or images, -> 1, a page. -> 1, book -> 4, had -> 2, antiquity, -> 1, of Aristotle's Physics is -> 1, it -> 2, prototypically -> 1, sheet -> 1, A -> 1, term -> 1, a -> 13, self-sufficient -> 1, recording information in -> 1, as -> 1, scrolls -> 1, chapters -> 1, or -> 4, such -> 2, medium -> 1, each -> 2, sections, -> 1, section -> 1, compositional -> 1, that -> 1, to -> 4, the scroll. -> 1, hand-held -> 1, single -> 1, considerable -> 1, long -...
+```
+
+
+#### 3.6. countByValueApprox()
+- similar to countApprox()
+
+
+#### 3.7. first()
+- return 1st record/word/string in RDD
+```
+scala> flatbookRDD.first()
+res29: String = A book is
+```
+
+
+#### 3.8. max() and min()
+- gives max value and min value
+```
+scala> flatbookRDD.max()
+res30: String = written
+
+scala> flatbookRDD.min()
+res31: String = A
+```
+
+
+#### 3.9. take(), takeOrdered() and top()
+```diff
+scala> val sampleRDD = spark.sparkContext.parallelize(List(6, 7, 5, 3, 10, 25, 8, 70, 35))
+sampleRDD: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[9] at parallelize at <console>:23
+
++//take first 3 elements from the collection
+scala> sampleRDD.take(3)
+res32: Array[Int] = Array(6, 7, 5)
++//take first 3 elements in Ascending Order
+scala> sampleRDD.takeOrdered(3)
+res33: Array[Int] = Array(3, 5, 6)
++//take first 3 elements in Descending Order
+scala> sampleRDD.top(3)
+res34: Array[Int] = Array(70, 35, 25)
+```
+
+
+#### 3.10. takeSample()
+- 1st argument: true -> same word can come again (with replacement), e.g, the word "written" appears twice.
+- 2nd argument: 70 -> number of Words
+- 3rd argument: 10L -> seed which ensures the reproducibility (same samples are taken for same seed), and it must be long data type. The "L" here indicate a long type data. If don't specify the seed, then random samples will be taken each time.
+```diff
+scala> flatbookRDD.takeSample(true, 70, 10L)
+res35: Array[String] = Array(books, written, In, by, scrolls, A book is, antiquity,, part, a leaf and, great, In, this, for, the scroll., section, is codex (plural, codices)., Each, term, the, object,, supports, each, technical, written, of writing or images,, chapters, In, a, sense,, a page., parts,, codex, that,, self-sufficient, extended, written, The, protected, and, this, compositional, length, investment, book., composed, composition,, a, or paper) bound together, of, book, a, its, a, a, part, an, A book is, compose, supports, composed, a, leaf, its, In, of, or, by, physical, for, records,)
+```
+
+
+#### 3.11. saveAsTextFile()
+```diff
+scala> flatbookRDD.saveAsTextFile("/home/tony/temp20220508")
+```
+***Check the generated file in hdfs by using following syntax:***
+```diff
+@@tony@tony-ubuntu:~/temp20220508$ hdfs dfs -ls /home/tony/temp20220508@@
+Found 3 items
+-rw-r--r--   1 tony supergroup          0 2022-05-08 01:05 /home/tony/temp20220508/_SUCCESS
+-rw-r--r--   1 tony supergroup        511 2022-05-08 01:05 /home/tony/temp20220508/part-00000
+-rw-r--r--   1 tony supergroup        635 2022-05-08 01:05 /home/tony/temp20220508/part-00001
+```
+***Note: there are two files are generated (part-00000 and part-00001) because we sepcify two partitions for this RDD.
+
+
+#### 3.12. cache and persist (Frequently asked interview questions)
+*Both caching and persisting are used to save the Spark RDD, Dataframe, and Dataset’s. But, the difference is, RDD cache() method default saves it to memory (MEMORY_ONLY) whereas persist() method is used to store it to the user-defined storage level.*
+##### 3.12.1. cache()
+***Example: the below "flatMap(x => x.split(" "))" transformation was executed two times, one for take() and one for top().***
+```diff
+scala> val flatbookRDD = bookRDD.flatMap(x => x.split(" "))
+flatbookRDD: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[18] at flatMap at <console>:25
+
+scala> flatbookRDD.take(5)
+res42: Array[String] = Array(A book is, a, medium, for, recording information in)
+
+scala> flatbookRDD.top(5)
+res43: Array[String] = Array(written, written, works, whole, which)
+```
+***Solution: use cache**
+- RDD cache() method default saves it to memory. 
+- Reusing the repeated computations saves lots of time.
+```diff
+scala> val flatbookRDD = bookRDD.flatMap(x => x.split(" "))
+flatbookRDD: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[20] at flatMap at <console>:25
+
++//cache RDD in Memory 
+scala> flatbookRDD.cache()
+res46: flatbookRDD.type = MapPartitionsRDD[20] at flatMap at <console>:25
+
+scala> flatbookRDD.take(5)
+res47: Array[String] = Array(A book is, a, medium, for, recording information in)
+
++// will not execute flatMap() tranformation again, intead will take from memory.
+scala> flatbookRDD.top(5)
+res48: Array[String] = Array(written, written, works, whole, which)
+```
+***Check the storage level by using getStorageLevel***
+```
+scala> flatbookRDD.getStorageLevel
++res49: org.apache.spark.storage.StorageLevel = StorageLevel(memory, deserialized, 1 replicas)
+```
+
+##### 3.12.2. persist()
+```diff
+-//uncache or unpersist the RDD storage level since it's already being assigned in_memory by using cache() above.
+scala> flatbookRDD.unpersist()
+res51: flatbookRDD.type = MapPartitionsRDD[20] at flatMap at <console>:25
+
++//persist() to assign the RDD storage level to disk only
+scala> flatbookRDD.persist(org.apache.spark.storage.StorageLevel.DISK_ONLY)
+res52: flatbookRDD.type = MapPartitionsRDD[20] at flatMap at <console>:25
++//check storage level
+scala> flatbookRDD.getStorageLevel
+res53: org.apache.spark.storage.StorageLevel = StorageLevel(disk, 1 replicas)
+```
