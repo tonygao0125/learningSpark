@@ -557,7 +557,7 @@ res42: Array[String] = Array(A book is, a, medium, for, recording information
 scala> flatbookRDD.top(5)
 res43: Array[String] = Array(written, written, works, whole, which)
 ```
-***Solution: use cache**
+***Solution: use cache()***
 - RDD cache() method default saves it to memory. 
 - Reusing the repeated computations saves lots of time.
 ```diff
@@ -576,7 +576,7 @@ scala> flatbookRDD.top(5)
 res48: Array[String] = Array(written, written, works, whole, which)
 ```
 ***Check the storage level by using getStorageLevel***
-```
+```diff
 scala> flatbookRDD.getStorageLevel
 +res49: org.apache.spark.storage.StorageLevel = StorageLevel(memory, deserialized, 1 replicas)
 ```
