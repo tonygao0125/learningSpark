@@ -220,7 +220,7 @@ It overcomes the limitation of DataFrame to regenerate the RDD from Dataframe. D
 No matter what data representation we use (RDD, DataFrame, Dataset), once we execute any instructions on it, that instruction can be classified into 2 categories: either Transformation or Action.
 
 1. Transformations: Involves modification of data contents, e.g., Where/Filter clause.
-2. Actions: Involves display of results on terminal, save to file, collect(), show(), etc. Action executes the Transformations. 
+2. Actions: Involves display of results on terminal, save to file, collect(), show(), reduce(), etc. Action executes the Transformations. 
 
 ***Spark is "LAZY", which means whatever TRANSFORMATION applied on RDD/DataFrame/Dataset will not be executed immediately unitl ACTIONS are called.***
 
@@ -233,3 +233,218 @@ WHY SPARK IS "LAZY"?
 - Narrow transformation: data transformation within the partition and different partitions of data process in parallel. One to one process, e.g., filter transformation. 
 - Wide transformation: partitions on different machines have data moving between machines, which is called shuffle. Shuffle takes time. e.g., join transformation.
 **If the using RDD for data representation, we must be careful, for example, use filter transformation prior to join transformation, otherwise it will take very long time because of shuffle. If using dataframe and dataset API, we don't have to worry about it.**
+
+---
+## RDD (Resilient Distributed Dataset) Practical
+### 1. Create RDD 
+#### 1.1. Parallelize Method 
+- Method is function defined in Class
+- Method: *<spark.sparkContext.parallelize>* - use to create a RDD
+```diff
+scala> spark
+res16: org.apache.spark.sql.SparkSession = org.apache.spark.sql.SparkSession@3b5a4aa5
++ // spark package contains sql package and SparkContext class (instantiation as "sc" in spark shell) SparkContext sql package contains SparkSession  
++ // class (instantiation as "spark"). SparkSession class contains sparkContext class. One is SparkContext, the other is sparkContext. 
+
+scala> spark.
+baseRelationToDataFrame   createDataFrame   experimental      range          sharedState    stop      udf       
+catalog                   createDataset     implicits         read           sparkContext   streams   version   
+close                     emptyDataFrame    listenerManager   readStream     sql            table               
+conf                      emptyDataset      newSession        sessionState   sqlContext     time                
+// SparkSession is a class belongs to org.apache.spark.sql package
+
+scala> spark.sparkContext
+res14: org.apache.spark.SparkContext = org.apache.spark.SparkContext@318ff889
+
+scala> sc
+res15: org.apache.spark.SparkContext = org.apache.spark.SparkContext@318ff889
+
+// Create an String Array
+scala> val carsArray = Array[String]("BMW", "Bentley", "Mercedes", "Suzuki", "Honda", "Jaguar", "Fiat", "Audi")
+carsArray: Array[String] = Array(BMW, Bentley, Mercedes, Suzuki, Honda, Jaguar, Fiat, Audi)
+!// Create RDD from the Array (Array is data structure in scala/java it's not distributed until being converted to RDD data type, then it has features
+!// of partitions, fault tolerence, immutable, lazy evaluation and so on)
+scala> val carsRDD = spark.sparkContext.parallelize(carsArray, 2)
+carsRDD: org.apache.spark.rdd.RDD[String] = ParallelCollectionRDD[8] at parallelize at <console>:25
+@@// we can also use sc instead of spark.sparkContext@@
+scala> carsRDD.collect()
+res17: Array[String] = Array(BMW, Bentley, Mercedes, Suzuki, Honda, Jaguar, Fiat, Audi)
+```
+### 2. Transformations
+#### 2.1.  distinct() - Get distinct values in RDD
+```diff
+-// duplicates of BMW in the array
+scala> val carsArray = Array[String]("BMW", "Bentley", "Mercedes", "Suzuki", "Honda", "Jaguar", "Fiat", "Audi", "BMW")
+carsArray: Array[String] = Array(BMW, Bentley, Mercedes, Suzuki, Honda, Jaguar, Fiat, Audi, BMW)
+
+scala> val carsRDD = sc.parallelize(carsArray)
+carsRDD: org.apache.spark.rdd.RDD[String] = ParallelCollectionRDD[9] at parallelize at <console>:26
+
+scala> carsRDD.collect()
+res19: Array[String] = Array(BMW, Bentley, Mercedes, Suzuki, Honda, Jaguar, Fiat, Audi, BMW)
++// apply distinct() method to get distinct values in RDD
+scala> val distinctcarsRDD = carsRDD.distinct()
+distinctcarsRDD: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[12] at distinct at <console>:25
+
+scala> distinctcarsRDD.collect()
+res20: Array[String] = Array(Bentley, Suzuki, BMW, Mercedes, Jaguar, Fiat, Honda, Audi)
+```
+
+#### 2.2.  filter() - Get values of interests
+```diff
+scala> val carsArray = Array[String]("BMW", "Bentley", "Mercedes", "Suzuki", "Honda", "Jaguar", "Fiat", "Audi")
+carsArray: Array[String] = Array(BMW, Bentley, Mercedes, Suzuki, Honda, Jaguar, Fiat, Audi)
+
+scala> val carsRDD = sc.parallelize(carsArray)
+carsRDD: org.apache.spark.rdd.RDD[String] = ParallelCollectionRDD[13] at parallelize at <console>:26
+
+scala> carsRDD.collect()
+res21: Array[String] = Array(BMW, Bentley, Mercedes, Suzuki, Honda, Jaguar, Fiat, Audi)
++//startsWith() is one of the methods for string in Scala. 
+scala> carsRDD.filter(carName => carName.startsWith("B")).collect()
+res22: Array[String] = Array(BMW, Bentley)
+```
+Example - get even number out of numbers
+```diff
+scala> val numbersRDD = sc.parallelize(1 to 10, 2)
+numbersRDD: org.apache.spark.rdd.RDD[Int] = ParallelCollectionRDD[25] at parallelize at <console>:24
+
+scala> numbersRDD.filter(x => x%2 ==0).collect()
+res31: Array[Int] = Array(2, 4, 6, 8, 10)
+
++//shorthand notation
+scala> numbersRDD.filter(_%2 ==0).collect()
+res32: Array[Int] = Array(2, 4, 6, 8, 10)
+```
+```diff
++ //define a function to get even numbers, the return type is Boolean
+scala> def evenFilter(x : Int) =
+     | x%2 == 0
+evenFilter: (x: Int)Boolean
+
+scala> numbersRDD.collect()
+res34: Array[Int] = Array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+
+scala> val evennumbers = numbersRDD.filter(x => evenFilter(x))
+evennumbers: org.apache.spark.rdd.RDD[Int] = MapPartitionsRDD[28] at filter at <console>:27
+
+scala> evennumbers.collect()
+res35: Array[Int] = Array(2, 4, 6, 8, 10)
+
++//use function instead of logic definition
+scala> val evennumbers = numbersRDD.filter(evenFilter).collect()
+evennumbers: Array[Int] = Array(2, 4, 6, 8, 10)
+```
+
+#### 2.3. map() - Mapping is transforming each RDD element using a function and returning a new RDD
+```diff
+scala> carsRDD.collect()
+res38: Array[String] = Array(BMW, Bentley, Mercedes, Suzuki, Honda, Jaguar, Fiat, Audi)
+
+scala> val carsRDDwithB = carsRDD.map(carName => (carName, carName.startsWith("B")))
+carsRDDwithB: org.apache.spark.rdd.RDD[(String, Boolean)] = MapPartitionsRDD[30] at map at <console>:25
+
++// Make a combination of data for each RDD elements
+scala> carsRDDwithB.collect()
+res39: Array[(String, Boolean)] = Array((BMW,true), (Bentley,true), (Mercedes,false), (Suzuki,false), (Honda,false), (Jaguar,false), (Fiat,false), (Audi,false))
+
++// Map transformation to get (CarName + CarName length)
+scala> val carsRDDMap = carsRDD.map(carName => (carName, carName.length)).collect()
+carsRDDMap: Array[(String, Int)] = Array((BMW,3), (Bentley,7), (Mercedes,8), (Suzuki,6), (Honda,5), (Jaguar,6), (Fiat,4), (Audi,4))
+```
+
+#### 2.4. flatMap()
+- flatMap() method is identical to the map() method, but the only difference is that in flatMap the inner grouping of an item is removed and a sequence is generated.
+- The output obtained by running the map method followed by the flatten method is same as obtained by the flatMap(). So, we can say that flatMap first runs the map method and then the flatten method to generate the desired result.
+```diff
+scala> val array1D = Array("1,2,3", "4,5,6", "7,8,9")
+array1D: Array[String] = Array(1,2,3, 4,5,6, 7,8,9)
+
++//map()
+scala> val array2D = array1D.map(x => x.split(","))
+array2D: Array[Array[String]] = Array(Array(1, 2, 3), Array(4, 5, 6), Array(7, 8, 9))
++//flatMap() is combination of map() and flatten()
+scala> val FlatArray = array1D.flatMap(x => x.split("x"))
+FlatArray: Array[String] = Array(1,2,3, 4,5,6, 7,8,9)
+
+scala> val FlatArray = array1D.flatMap(x => x.split(","))
+FlatArray: Array[String] = Array(1, 2, 3, 4, 5, 6, 7, 8, 9)
+```
+***Words count example by using RDD (word count is to learning Hadoop/Spark/Distributed Data processing engine what print("hello world") to learning programing language***
+```diff
+// Create an Array of texts
+scala> val book = Array("A book is a medium for recording information in the form of writing or images, typically composed of many pages (made of papyrus, parchment, vellum, or paper) bound together and protected by a cover.", "The technical term for this physical arrangement is codex (plural, codices). In the history of hand-held physical supports for extended written compositions or records, the codex replaces its predecessor, the scroll. A single sheet in a codex is a leaf and each side of a leaf is a page.", "As an intellectual object, a book is prototypically a composition of such great length that it takes a considerable investment of time to compose and still considered as an investment of time to read.", "In a restricted sense, a book is a self-sufficient section or part of a longer composition, a usage reflecting that, in antiquity, long works had to be written on several scrolls and each scroll had to be identified by the book it contained.", "Each part of Aristotle's Physics is called a book. In an unrestricted sense, a book is the compositional whole of which such sections, whether called books or chapters or parts, are parts.")
+book: Array[String] = Array(A book is a medium for recording information in the form of writing or images, typically composed of many pages (made of papyrus, parchment, vellum, or paper) bound together and protected by a cover., The technical term for this physical arrangement is codex (plural, codices). In the history of hand-held physical supports for extended written compositions or records, the codex replaces its predecessor, the scroll. A single sheet in a codex is a leaf and each side of a leaf is a page., As an intellectual object, a book is prototypically a composition of such great length that it takes a considerable investment of time to compose and still considered as an investment of time to read., In a restricted sense, a book is a self-sufficient section or part of a longe...
+
++//Create the RDD by parallelizing an existing collection in your driver program                        
+scala> val bookRDD = spark.sparkContext.parallelize(book, 2)
+bookRDD: org.apache.spark.rdd.RDD[String] = ParallelCollectionRDD[33] at parallelize at <console>:25
+
++//Split all the texts in the array into words 
+scala> val flatbookRDD = bookRDD.flatMap(text => text.split(" "))
+flatbookRDD: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[34] at flatMap at <console>:25
+```
+
+#### 2.5. sortBy()
+```diff
+scala> flatbookRDD.sortBy(word => word.length())
+res48: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[39] at sortBy at <console>:26
+//Ascending
+scala> flatbookRDD.sortBy(word => word.length()).collect()
+res49: Array[String] = Array(a, A, a, a, a, a, a, a, a, a, a, a, a, a, of, by, In, of, or, in, is, of, is, As, an, is, of, it, of, to, as, an, of, to, In, is, or, of, in, to, be, on, to, be, by, it, In, an, is, of, or, or, for, the, and, The, for, the, for, the, its, and, had, and, had, the, the, are, form, term, this, each, side, leaf, book, such, that, time, time, book, part, long, each, book, Each, part, book, such, codex, sheet, codex, great, takes, still, read., usage, that,, works, book., whole, which, books, medium, single, length, sense,, longer, scroll, called, sense,, called, parts,, parts., history, written, a page., object,, compose, section, written, several, scrolls, whether, composed, a cover., physical, physical, supports, extended, records,, replaces, chapters, A book i...
+scala> 
+//Descending 
+scala> flatbookRDD.sortBy(word => word.length(), false).collect()
+res50: Array[String] = Array(of papyrus, parchment, vellum,, is codex (plural, codices)., of Aristotle's Physics is, recording information in, or paper) bound together, of writing or images,, many pages (made, self-sufficient, prototypically, compositional, compositions, predecessor,, intellectual, considerable, composition,, unrestricted, arrangement, the scroll., composition, a leaf and, investment, considered, investment, restricted, reflecting, antiquity,, identified, contained., A book is, typically, protected, technical, hand-held, sections,, composed, a cover., physical, physical, supports, extended, records,, replaces, chapters, history, written, a page., object,, compose, section, written, several, scrolls, whether, medium, single, length, sense,, longer, scroll, called, sense,...
+```
+
+#### 2.6. randomSplit()
+- Application: Data Science - Machine Learning - Because need to break the entire data set into 70:30 training and test data sets.
+```diff
+//Random split the RDD by 70%:30% into Array[RDD[String]]
+scala> val MLbookRDD = flatbookRDD.randomSplit(Array[Double](0.7,0.3))
+MLbookRDD: Array[org.apache.spark.rdd.RDD[String]] = Array(MapPartitionsRDD[52] at randomSplit at <console>:25, MapPartitionsRDD[53] at randomSplit at <console>:25)
++//Call the first element of the RDD Array, which makes up 70% of the RDD for training purpose
+scala> MLbookRDD(0).collect()
+res54: Array[String] = Array(A book is, a, medium, for, form, of writing or images,, typically, many pages (made, or paper) bound together, and, protected, a cover., The, technical, term, for, physical, arrangement, the, of, hand-held, for, extended, written, or, records,, the, replaces, its, predecessor,, the scroll., single, in, is, a leaf and, each, a, leaf, is, a page., As, an, intellectual, object,, a, is, a, composition, of, great, length, that, it, takes, a, considerable, investment, of, time, to, and, still, investment, to, restricted, sense,, a, book, is, a, section, or, part, of, a, longer, composition,, a, that,, in, antiquity,, long, had, be, on, several, scrolls, scroll, to, be, identified, by, the, book, it, Each, part, called, a, In, unrestricted, sense,, book, is, the, w...
++//Call the second element of the RDD Array, which makes up 30% of the RDD for test purpose
+scala> MLbookRDD(1).collect()
+res55: Array[String] = Array(recording information in, the, composed, of, of papyrus, parchment, vellum,, by, this, is codex (plural, codices)., In, history, physical, supports, compositions, codex, A, sheet, a, codex, side, of, book, prototypically, such, compose, considered, as, an, of, time, read., In, a, self-sufficient, usage, reflecting, works, to, written, and, each, had, contained., of Aristotle's Physics is, book., an, a, compositional, such, chapters)
+```
+
+### 3. Actions
+Starts the Transformation
+#### 3.1. collect()
+- Return a list that contains all of the elements in this RDD.
+- **This method should only be used if the resulting array is expected to be small, as all the data is loaded into the driver’s memory.**
+```diff
++//Display all the elements in this RDD (from all partitions)
+scala> flatbookRDD.collect()
+res0: Array[String] = Array(A book is, a, medium, for, recording information in, the, form, of writing or images,, typically, composed, of, many pages (made, of papyrus, parchment, vellum,, or paper) bound together, and, protected, by, a cover., The, technical, term, for, this, physical, arrangement, is codex (plural, codices)., In, the, history, of, hand-held, physical, supports, for, extended, written, compositions, or, records,, the, codex, replaces, its, predecessor,, the scroll., A, single, sheet, in, a, codex, is, a leaf and, each, side, of, a, leaf, is, a page., As, an, intellectual, object,, a, book, is, prototypically, a, composition, of, such, great, length, that, it, takes, a, considerable, investment, of, time, to, compose, and, still, considered, as, an, investment, of, tim...
+```
+
+#### 3.2. reduce()
+- Reduce is a spark action that aggregates a data set (RDD) element using a function. That function takes two arguments and returns one. e.g., add operation.
+```diff
+scala> sc.parallelize(1 to 10).collect()
+res2: Array[Int] = Array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+
+scala> sc.parallelize(1 to 10).reduce(_ + _)
+res3: Int = 55
+```
+- **Example of find the smallest length of word in the RDD**
+```diff
++//define a logic function taking 2 arguments (word here) and return the word with smaller length 
+scala> def smallestWord(leftWord:String, rightWord:String):String={
+     | if (leftWord.length >= rightWord.length) {rightWord}
+     | else {leftWord}}
+smallestWord: (leftWord: String, rightWord: String)String
+
+//use the self-defined function as the reduce behavior
+scala> flatbookRDD.reduce(smallestWord)
+res9: String = a
+
+//without using the pre-defined logic function (NOT RECCOMENDED)
+scala> flatbookRDD.reduce((x,y)=>{if(x.length>=y.length) {y} else {x}})
+res10: String = a
+```
