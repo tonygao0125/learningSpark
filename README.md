@@ -594,3 +594,155 @@ res52: flatbookRDD.type = MapPartitionsRDD[20] at flatMap at <console>:25
 scala> flatbookRDD.getStorageLevel
 res53: org.apache.spark.storage.StorageLevel = StorageLevel(disk, 1 replicas)
 ```
+
+#### 3.13. checkpoint()
+- Debug Purpose
+- First need to set the checkpoint directory
+```
++// set check point directory before set checkpoint
+@@// we can set directory to hdfs@@
+scala> sc.setCheckpointDir("/checkpoint20220508")
+@@// or we can set directory to local file system@@
+scala> sc.setCheckpointDir("file:///home/tony/checkpoint20220508")
+
+// save RDD to the directory
+scala> flatbookRDD.checkpoint()
+```
+```
+@@//check directory in hdfs@@
+tony@tony-ubuntu:~$ hdfs dfs -ls /checkpoint20220508
+Found 1 items
+drwxr-xr-x   - tony supergroup          0 2022-05-08 12:25 /checkpoint20220508/712fe15f-45fb-44bf-b477-7f351cb90b44
+
+@@//check directory in local file system@@
+tony@tony-ubuntu:~/checkpoint20220508$ ls /home/tony/checkpoint20220508
+489b1ffc-3a61-49b8-b5c0-6efa2eb9b5b8
+```
+***<ins>So to answer the question “when should I cache or checkpoint?” for me really boils down to determining if the results of a set of transformations can be reused for a very long time or not. If the answer is yes, use checkpointing. If the answer is no, use caching.</ins>***
+- An example where checkpointing would be preferred over caching would be crunching a RDD or DataFrame of taxes for a previous year: they are unlikely to change once calculated so it would be much better to checkpoint and save them forever so that they can be consistently reused in the future.
+- An example where caching would be appropriate would be like calculating the power usage of homes for a day: any transformations that need to be made  to a RDD or DataFrame to determine the power usage for homes for a day are most likely going to be unique day and would never be used again for any following day’s calculations.
+
+
+#### 3.14. pipe()
+- Return an RDD created by piping elements to a forked external process. [reference](https://www.cnblogs.com/bonelee/p/13089297.html)
+- An RDD that **pipes the contents of each parent partition through an external command(printing them one per line)** and returns the output as a collection of strings.
+- use linux command "wc -l" as an example [use of wc command in linux](https://www.geeksforgeeks.org/wc-command-linux-examples/)
+```diff
+//flatbookRDD
+scala> flatbookRDD.collect()
+res2: Array[String] = Array(A book is, a, medium, for, recording information in, the, form, of writing or images,, typically, composed, of, many pages (made, of papyrus, parchment, vellum,, or paper) bound together, and, protected, by, a cover., The, technical, term, for, this, physical, arrangement, is codex (plural, codices)., In, the, history, of, hand-held, physical, supports, for, extended, written, compositions, or, records,, the, codex, replaces, its, predecessor,, the scroll., A, single, sheet, in, a, codex, is, a leaf and, each, side, of, a, leaf, is, a page., As, an, intellectual, object,, a, book, is, prototypically, a, composition, of, such, great, length, that, it, takes, a, considerable, investment, of, time, to, compose, and, still, considered, as, an, investment, of, tim...
+//count of the RDD, which is the number of words (1 word per line) is 166
+scala> flatbookRDD.count()
+res3: Long = 166
+
+// flatbookRDD with 2 partitions, each partition returns the number of the lines (60 and 106)
+scala> flatbookRDD.pipe("wc -l").collect()
+res4: Array[String] = Array(60, 106)
+
++// Repartiton to 3 partitions
+scala> val flatBookRDD = flatbookRDD.repartition(3)
+flatBookRDD: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[10] at repartition at <console>:25
+
+scala> flatBookRDD.pipe("wc -l").collect()
+res12: Array[String] = Array(55, 55, 56)
+```
+
+
+#### 3.15. mapPartitions()
+- Does tranformation partition wise, at partition level. Comparing to map(), map() does tranformation at RDD level.
+```diff
+// for each partition create an array element 
+scala> bookRDD.mapPartitions(part => Iterator[Int](1)).collect()
+res67: Array[Int] = Array(1, 1)
+// thus count the number of partitons indirectly by using sum() method
+scala> bookRDD.mapPartitions(part => Iterator[Int](1)).sum()
+res66: Double = 2.0
+
+// to get the number of RDD in each partition
+scala> bookRDD.mapPartitions(part => Array(part.size).iterator).collect()
+res79: Array[Int] = Array(2, 3)
+```
+
+
+#### 3.16. mapPartitionsWithIndex()
+- Debug application: to find out which word/content is present in which partition
+```diff
+// to display the rdd element in the second partition of the bookRDD rdd.
+scala> bookRDD.mapPartitionsWithIndex((index:Int, it: Iterator[String]) => it.toArray.map(x => if (index==1){println(x)}).iterator).collect()
+As an intellectual object, a book is prototypically a composition of such great length that it takes a considerable investment of time to compose and still considered as an investment of time to read.
+In a restricted sense, a book is a self-sufficient section or part of a longer composition, a usage reflecting that, in antiquity, long works had to be written on several scrolls and each scroll had to be identified by the book it contained.
+Each part of Aristotle's Physics is called a book. In an unrestricted sense, a book is the compositional whole of which such sections, whether called books or chapters or parts, are parts.
+res4: Array[Unit] = Array((), (), (), (), ())
+```
+
+```
+mapPartitionsWithIndex(self, f, preservesPartitioning=False)
+```
+***Note: The parameter: f must return an iterable object. The custom function in "mapPartitions" and "mapPartitionsWithIndex" must return yet another Iterator.*** 
+- [Reference 1](https://proedu.co/spark/apache-spark-rdd-mappartitions-mappartitionswithindex-transformation/)
+- [Reference 2](https://stackoverflow.com/questions/47468269/mappartitionswithindex-how-is-output-combined)
+
+
+#### 3.17. foreachPartition()
+- It operates on each partition
+- Diff between mapPartition and foreachPartition is, mapPartitions() will return some thing for each partition, whereas foreachPartition() will not return any thing.
+```diff
+// print the list for each partition 
+scala> bookRDD.foreachPartition((it: Iterator[String])=>println(it.toList))
+List(A book is a medium for recording information in the form of writing or images, typically composed of many pages (made of papyrus, parchment, vellum, or paper) bound together and protected by a cover., The technical term for this physical arrangement is codex (plural, codices). In the history of hand-held physical supports for extended written compositions or records, the codex replaces its predecessor, the scroll. A single sheet in a codex is a leaf and each side of a leaf is a page.)
+List(As an intellectual object, a book is prototypically a composition of such great length that it takes a considerable investment of time to compose and still considered as an investment of time to read., In a restricted sense, a book is a self-sufficient section or part of a longer composition, a usage reflecting that, in antiquity, long works had to be written on several scrolls and each scroll had to be identified by the book it contained., Each part of Aristotle's Physics is called a book. In an unrestricted sense, a book is the compositional whole of which such sections, whether called books or chapters or parts, are parts.)
+```
+
+
+#### 3.18. glom()
+- Write contents of each RDD into an Array.
+```
+scala> bookRDD.collect()
+res45: Array[String] = Array(A book is a medium for recording information in the form of writing or images, typically composed of many pages (made of papyrus, parchment, vellum, or paper) bound together and protected by a cover., The technical term for this physical arrangement is codex (plural, codices). In the history of hand-held physical supports for extended written compositions or records, the codex replaces its predecessor, the scroll. A single sheet in a codex is a leaf and each side of a leaf is a page., As an intellectual object, a book is prototypically a composition of such great length that it takes a considerable investment of time to compose and still considered as an investment of time to read., In a restricted sense, a book is a self-sufficient section or part of a long...
+
++scala> bookRDD.glom().collect()
+res46: Array[Array[String]] = Array(Array(A book is a medium for recording information in the form of writing or images, typically composed of many pages (made of papyrus, parchment, vellum, or paper) bound together and protected by a cover., The technical term for this physical arrangement is codex (plural, codices). In the history of hand-held physical supports for extended written compositions or records, the codex replaces its predecessor, the scroll. A single sheet in a codex is a leaf and each side of a leaf is a page.), Array(As an intellectual object, a book is prototypically a composition of such great length that it takes a considerable investment of time to compose and still considered as an investment of time to read., In a restricted sense, a book is a self-sufficient secti...
+```
+
+
+### 4. Key - Value RDD
+- Dictionary in Python
+- JSON e.g., {"name": "tony", "location": "SG"}. ***In JSON, key must be unique but we can have multiple values. In RDD, we can have duplicate Keys, too.***
+
+#### 4.1. Use map() to create key-value pair RDD
+```diff
+scala> flatbookRDD.map(word => (word, word.toLowerCase)).collect()
+res51: Array[(String, String)] = Array((A,a), (book,book), (is,is), (a,a), (medium,medium), (for,for), (recording,recording), (information,information), (in,in), (the,the), (form,form), (of,of), (writing,writing), (or,or), (images,,images,), (typically,typically), (composed,composed), (of,of), (many,many), (pages,pages), ((made,(made), (of,of), (papyrus,,papyrus,), (parchment,,parchment,), (vellum,,vellum,), (or,or), (paper),paper)), (bound,bound), (together,together), (and,and), (protected,protected), (by,by), (a,a), (cover.,cover.), (The,the), (technical,technical), (term,term), (for,for), (this,this), (physical,physical), (arrangement,arrangement), (is,is), (codex,codex), ((plural,,(plural,), (codices).,codices).), (In,in), (the,the), (history,history), (of,of), (hand-held,hand-held)...
+```
+
+
+#### 4.2. Use keyBy() to create key-value pair RDD
+```diff
++// use word length as the key to create key-value pair, value corresponds to word itself.
+scala> flatbookRDD.keyBy(word => word.length).collect
+res53: Array[(Int, String)] = Array((1,A), (4,book), (2,is), (1,a), (6,medium), (3,for), (9,recording), (11,information), (2,in), (3,the), (4,form), (2,of), (7,writing), (2,or), (7,images,), (9,typically), (8,composed), (2,of), (4,many), (5,pages), (5,(made), (2,of), (8,papyrus,), (10,parchment,), (7,vellum,), (2,or), (6,paper)), (5,bound), (8,together), (3,and), (9,protected), (2,by), (1,a), (6,cover.), (3,The), (9,technical), (4,term), (3,for), (4,this), (8,physical), (11,arrangement), (2,is), (5,codex), (8,(plural,), (9,codices).), (2,In), (3,the), (7,history), (2,of), (9,hand-held), (8,physical), (8,supports), (3,for), (8,extended), (7,written), (12,compositions), (2,or), (8,records,), (3,the), (5,codex), (8,replaces), (3,its), (12,predecessor,), (3,the), (7,scroll.), (1,A), (6,sing...
+```
+
+#### 4.3. mapValues() to operate the values for each key-value pair RDD
+```diff
++scala> flatbookRDD.keyBy(word => word.length).mapValues(word => word.toUpperCase).collect
+res56: Array[(Int, String)] = Array((1,A), (4,BOOK), (2,IS), (1,A), (6,MEDIUM), (3,FOR), (9,RECORDING), (11,INFORMATION), (2,IN), (3,THE), (4,FORM), (2,OF), (7,WRITING), (2,OR), (7,IMAGES,), (9,TYPICALLY), (8,COMPOSED), (2,OF), (4,MANY), (5,PAGES), (5,(MADE), (2,OF), (8,PAPYRUS,), (10,PARCHMENT,), (7,VELLUM,), (2,OR), (6,PAPER)), (5,BOUND), (8,TOGETHER), (3,AND), (9,PROTECTED), (2,BY), (1,A), (6,COVER.), (3,THE), (9,TECHNICAL), (4,TERM), (3,FOR), (4,THIS), (8,PHYSICAL), (11,ARRANGEMENT), (2,IS), (5,CODEX), (8,(PLURAL,), (9,CODICES).), (2,IN), (3,THE), (7,HISTORY), (2,OF), (9,HAND-HELD), (8,PHYSICAL), (8,SUPPORTS), (3,FOR), (8,EXTENDED), (7,WRITTEN), (12,COMPOSITIONS), (2,OR), (8,RECORDS,), (3,THE), (5,CODEX), (8,REPLACES), (3,ITS), (12,PREDECESSOR,), (3,THE), (7,SCROLL.), (1,A), (6,SING...
+```
+
+#### 4.4. flatMapValues()
+```diff
++//类似于mapValues，不同的在于flatMapValues应用于元素为KV对的RDD中Value。每个一元素的Value被输入函数映射为一系列的值，然后这些值再与原RDD中的Key组成一系列新的KV对
+scala> flatbookRDD.keyBy(word => word.length).flatMapValues(word => word.toUpperCase).collect
+res57: Array[(Int, Char)] = Array((1,A), (4,B), (4,O), (4,O), (4,K), (2,I), (2,S), (1,A), (6,M), (6,E), (6,D), (6,I), (6,U), (6,M), (3,F), (3,O), (3,R), (9,R), (9,E), (9,C), (9,O), (9,R), (9,D), (9,I), (9,N), (9,G), (11,I), (11,N), (11,F), (11,O), (11,R), (11,M), (11,A), (11,T), (11,I), (11,O), (11,N), (2,I), (2,N), (3,T), (3,H), (3,E), (4,F), (4,O), (4,R), (4,M), (2,O), (2,F), (7,W), (7,R), (7,I), (7,T), (7,I), (7,N), (7,G), (2,O), (2,R), (7,I), (7,M), (7,A), (7,G), (7,E), (7,S), (7,,), (9,T), (9,Y), (9,P), (9,I), (9,C), (9,A), (9,L), (9,L), (9,Y), (8,C), (8,O), (8,M), (8,P), (8,O), (8,S), (8,E), (8,D), (2,O), (2,F), (4,M), (4,A), (4,N), (4,Y), (5,P), (5,A), (5,G), (5,E), (5,S), (5,(), (5,M), (5,A), (5,D), (5,E), (2,O), (2,F), (8,P), (8,A), (8,P), (8,Y), (8,R), (8,U), (8,S), (8,,), (10...
+```
+
+#### 4.5. keys()
+- show keys
+```
+scala> keyValueRDD.collect()
+res59: Array[(Int, String)] = Array((1,A), (4,book), (2,is), (1,a), (6,medium), (3,for), (9,recording), (11,information), (2,in), (3,the), (4,form), (2,of), (7,writing), (2,or), (7,images,), (9,typically), (8,composed), (2,of), (4,many), (5,pages), (5,(made), (2,of), (8,papyrus,), (10,parchment,), (7,vellum,), (2,or), (6,paper)), (5,bound), (8,together), (3,and), (9,protected), (2,by), (1,a), (6,cover.), (3,The), (9,technical), (4,term), (3,for), (4,this), (8,physical), (11,arrangement), (2,is), (5,codex), (8,(plural,), (9,codices).), (2,In), (3,the), (7,history), (2,of), (9,hand-held), (8,physical), (8,supports), (3,for), (8,extended), (7,written), (12,compositions), (2,or), (8,records,), (3,the), (5,codex), (8,replaces), (3,its), (12,predecessor,), (3,the), (7,scroll.), (1,A), (6,sing...
+
+scala> keyValueRDD.keys.collect()
+res58: Array[Int] = Array(1, 4, 2, 1, 6, 3, 9, 11, 2, 3, 4, 2, 7, 2, 7, 9, 8, 2, 4, 5, 5, 2, 8, 10, 7, 2, 6, 5, 8, 3, 9, 2, 1, 6, 3, 9, 4, 3, 4, 8, 11, 2, 5, 8, 9, 2, 3, 7, 2, 9, 8, 8, 3, 8, 7, 12, 2, 8, 3, 5, 8, 3, 12, 3, 7, 1, 6, 5, 2, 1, 5, 2, 1, 4, 3, 4, 4, 2, 1, 4, 2, 1, 5, 2, 2, 12, 7, 1, 4, 2, 14, 1, 11, 2, 4, 5, 6, 4, 2, 5, 1, 12, 10, 2, 4, 2, 7, 3, 5, 10, 2, 2, 10, 2, 4, 2, 5, 2, 1, 10, 6, 1, 4, 2, 1, 15, 7, 2, 4, 2, 1, 6, 12, 1, 5, 10, 5, 2, 10, 4, 5, 3, 2, 2, 7, 2, 7, 7, 3, 4, 6, 3, 2, 2, 10, 2, 3, 4, 2, 10, 4, 4, 2, 11, 7, 2, 6, 1, 5, 2, 2, 12, 6, 1, 4, 2, 3, 13, 5, 2, 5, 4, 9, 7, 6, 5, 2, 8, 2, 6, 3, 6)
+```
+
